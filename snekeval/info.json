@@ -3,7 +3,7 @@
     "install_msg" : "A message you wish to display to users after they sucessfully install your cog.",
     "name" : "SnekEval",
     "short" : "Evaluate your Python snippets!",
-    "requirements" : ["requests"],
+    "requirements" : ["httpx"],
     "description" : "Full description of your cog. Displayed on the Red Portal and with `[p]cog info`",
     "permissions" : ["List of Bot permissions required"],
     "tags" : ["List of search tags for the Red portal"]

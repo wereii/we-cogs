@@ -11,11 +11,8 @@ logger = logging.getLogger("we_cogs.snekeval")
 listener = getattr(commands.Cog, "listener", None)
 
 if listener is None:
-
     def listener(name=None):
         return lambda x: x
-
-
 # --
 
 
