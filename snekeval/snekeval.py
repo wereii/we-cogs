@@ -1,6 +1,7 @@
-from httpx import AsyncClient, exceptions
-from redbot.core import Config, checks, commands
 import logging
+
+import aiohttp
+from redbot.core import Config, checks, commands
 
 logger = logging.getLogger("we_cogs.snekeval")
 
@@ -11,16 +12,24 @@ logger = logging.getLogger("we_cogs.snekeval")
 listener = getattr(commands.Cog, "listener", None)
 
 if listener is None:
+
     def listener(name=None):
         return lambda x: x
+
+
 # --
 
 
 class SnekEval(commands.Cog):
-    """Description of the cog visible with [p]help MyFirstCog"""
+    """Evaluate your python code right from Discord.```
+    - Execution time limited to 2 seconds.
+    - Only built-in modules.
+    - No filesystem.
+    - No enviroment.```"""
 
     def __init__(self):
-        self.conf = Config.get_conf(self, identifier=115110101107)  # ord('snek')
+        self.conf = Config.get_conf(
+            self, identifier=115110101107)  # ord('snek')
         default_global = {"snekbox_url": None}
         self.conf.register_global(**default_global)
 
@@ -28,18 +37,18 @@ class SnekEval(commands.Cog):
     async def evaluate(url: str, payload: str) -> dict:
         data = {"input": payload}
 
-        ret = None
-        async with AsyncClient() as aclient:
-            ret = await aclient.post(url, json=data)
-            aclient.raise_for_status()
+        async with aiohttp.ClientSession() as session:  # type: aiohttp.ClientSession
+            async with session.post(url, json=data) as resp:
+                resp.raise_for_status()
+                ret_json = await resp.json()
 
-        return ret.json()
+        return ret_json
 
     async def test_snekurl(self, url: str):
         ret_json = None
         try:
             ret_json = await self.evaluate(url, "print('hello world')")
-        except exceptions.HTTPError as exc:
+        except aiohttp.client_exceptions.ClientError as exc:
             logger.error("Request failed.", exc_info=exc)
         else:
             if ret_json.get("returncode") == 0:
@@ -47,34 +56,36 @@ class SnekEval(commands.Cog):
 
         return False
 
-    @commands.group()
-    async def snekeval(self, ctx):
-        """Evaluate your python code right from Discord.\n"""
-        """```\n- Time limited to 2 seconds.\n"""
-        """- Only built-in modules.\n"""
-        """- No filesystem.\n"""
-        """- No enviroment.\n```"""
-        pass
-
-    @snekeval.command()
+    @commands.command(usage="<snekbox_url>")
     @checks.is_owner()
-    async def url(self, ctx: commands.Context, url=None, usage="<snekbox_url>"):
-        """Set URL to your snekbox-box.\nExample url:"""
-        """ `http://[IP or site][:port]/eval` | `http://snek.box.com:8060/eval`"""
+    async def snekurl(self, ctx: commands.Context, url=None):
+        """Set URL to your snekbox-box.
+        Examples:
+        `http://[IP or site][:port]/eval`
+        `http://snek.box.com:8060/eval`"""
 
         if not url:
-            return await ctx.send_help()
+            current_url = await self.conf.snekbox_url()
+            await ctx.send_help()
+            return await ctx.send("`Current snekbox URL: {}`".format(current_url))
 
         async with ctx.typing():
-            if self.test_snekurl(url):
-                self.conf.snekbox_url.set(url)
-                await ctx.send(":white_check_mark: It's working! New url set.")
-            else:
-                await ctx.send(":x: URL doesn't seem to work.")
+            if await self.test_snekurl(url):
+                await self.conf.snekbox_url.set(url)
+                return await ctx.send(":white_check_mark: It's working! New url set.")
 
-    @commands.command()
-    async def eval(self, ctx, *, payload: str = None):
-        """Description of myfirstcom visible with [p]help myfirstcom"""
+            await ctx.send(":x: URL doesn't seem to work.")
+
+    @commands.command(usage="<payload>")
+    async def snek(self, ctx, *, payload: str = None):
+        """Evaluates python code
+        Escaping with \" or \' is not needed.
+        _Everything after this command is considered code._"""
+
+        url = await self.conf.snekbox_url()
+        if not url:
+            return await ctx.send("Snekbox URL isn't set.")
+
         if not payload:
             return await ctx.send_help()
 
@@ -82,7 +93,7 @@ class SnekEval(commands.Cog):
         if (first_sym == last_sym == "'") or (first_sym == last_sym == '"'):
             payload = payload[1:-1]
 
-        data = await self.evaluate(self.conf.snekbox_url(), payload)
+        data = await self.evaluate(url, payload)
         await ctx.send(
             "\n".join(
                 (
