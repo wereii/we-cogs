@@ -1,8 +1,7 @@
 import logging
+from typing import Dict
 
 import aiohttp
-from typing import AnyStr, Dict
-
 from redbot.core import Config, checks, commands
 
 logger = logging.getLogger("snekeval")
@@ -46,6 +45,10 @@ class SnekEval(commands.Cog):
     @staticmethod
     def _parse_code_block(text: str):
         return text.lstrip('```python').rstrip('```')
+    
+    @staticmethod
+    def _escape_backticks(text: str, escpe_with='\u200b'):
+        return text.replace('`', escpe_with)
 
     @commands.command(usage="<snekbox_url>")
     @checks.is_owner()
@@ -68,13 +71,14 @@ class SnekEval(commands.Cog):
             await ctx.send(":x: URL doesn't seem to work.")
 
     @commands.command(usage="<payload>")
-    async def snek(self, ctx, *, payload: AnyStr = None):
+    async def snek(self, ctx, *, payload: str = None):
         """Evaluate your python code right from Discord.```
         - Execution time limited to 2 seconds.
         - Only built-in modules.
         - No filesystem.
         - No enviroment.```
-        _Everything after this command is considered code._"""
+        _Everything after this command is considered code._
+        Code blocks supported."""
 
         url = await self.conf.snekbox_url()
         if not url:
@@ -103,6 +107,8 @@ class SnekEval(commands.Cog):
             stdout = self._parse_code_block(stdout)
         else:
             stdout = self._remove_escapes(stdout)
+
+        stdout = self._escape_backticks(stdout)
 
         await ctx.send(
             "\n".join(
