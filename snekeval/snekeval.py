@@ -45,7 +45,7 @@ class SnekEval(commands.Cog):
     @staticmethod
     def _parse_code_block(text: str):
         return text.lstrip('```python').rstrip('```')
-    
+
     @staticmethod
     def _escape_backticks(text: str, escape_with='\u200b'):
         return text.replace('`', escape_with)
@@ -87,38 +87,36 @@ class SnekEval(commands.Cog):
         if not payload:
             return await ctx.send_help()
 
-        first_sym, last_sym = payload[0], payload[-1]
-        if (first_sym == last_sym == "'") or (first_sym == last_sym == '"'):
-            payload = payload[1:-1]
-        try:
-            data = await self._evaluate(url, payload)
-        except Exception as exc:
-            await ctx.send(f"Something went wrong when contacting Snekbox: `{exc}`")
-            return
+        async with ctx.typing():
+            payload = payload.strip()
 
-        if data.get('returncode') == 137:
-            # timeout
-            await ctx.send(":timer: Execution timeout. _Maximum running time is 2 seconds._")
-            return
+            # detect code block
+            if payload.startswith("```python") and payload.endswith("```"):
+                payload = self._parse_code_block(payload)
+            else:
+                payload = self._remove_escapes(payload)
 
-        stdout = data.get('stdout', "").strip()
+            try:
+                data = await self._evaluate(url, payload)
+            except Exception as exc:
+                await ctx.send(f"Something went wrong when contacting Snekbox: `{exc}`")
+                return
 
-        # detect code block
-        if stdout.startswith("```python") and stdout.endswith("```"):
-            stdout = self._parse_code_block(stdout)
-        else:
-            stdout = self._remove_escapes(stdout)
+            if data.get('returncode') == 137:
+                # timeout
+                await ctx.send(":timer: Execution timeout. _Maximum running time is 2 seconds._")
+                return
 
-        stdout = self._escape_backticks(stdout)
+            stdout = self._escape_backticks(data.get("stdout", ""))
 
-        await ctx.send(
-            "\n".join(
-                (
-                    "```",
-                    stdout,
-                    " ",
-                    f"status code: {data.get('returncode')}",
-                    "```",
+            await ctx.send(
+                "\n".join(
+                    (
+                        "```",
+                        stdout,
+                        " ",
+                        f"status code: {data.get('returncode')}",
+                        "```",
+                    )
                 )
             )
-        )
