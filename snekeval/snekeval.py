@@ -38,7 +38,7 @@ class SnekEval(commands.Cog):
 
     @staticmethod
     def _remove_escapes(text: str):
-        while text.startswith(('"', '\'')) and text.endswith(('"', '\'')):
+        while text.startswith(('"', '\'', '`')) and text.endswith(('"', '\'', '`')):
             text = text[1:-1]
         return text
 
@@ -47,8 +47,8 @@ class SnekEval(commands.Cog):
         return text.lstrip('```python').rstrip('```')
     
     @staticmethod
-    def _escape_backticks(text: str, escpe_with='\u200b'):
-        return text.replace('`', escpe_with)
+    def _escape_backticks(text: str, escape_with='\u200b'):
+        return text.replace('`', escape_with)
 
     @commands.command(usage="<snekbox_url>")
     @checks.is_owner()
@@ -97,13 +97,14 @@ class SnekEval(commands.Cog):
             return
 
         if data.get('returncode') == 137:
+            # timeout
             await ctx.send(":timer: Execution timeout. _Maximum running time is 2 seconds._")
             return
 
         stdout = data.get('stdout', "").strip()
 
         # detect code block
-        if stdout.startswith(("```python ", "```python\n")) and stdout.endswith("```"):
+        if stdout.startswith("```python") and stdout.endswith("```"):
             stdout = self._parse_code_block(stdout)
         else:
             stdout = self._remove_escapes(stdout)
@@ -116,7 +117,7 @@ class SnekEval(commands.Cog):
                     "```",
                     stdout,
                     " ",
-                    "status code: {}".format(data.get("returncode")),
+                    f"status code: {data.get('returncode')}",
                     "```",
                 )
             )
