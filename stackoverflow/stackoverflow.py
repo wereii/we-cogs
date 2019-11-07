@@ -38,10 +38,12 @@ class StackOverflow(commands.Cog):
         baseURL = "https://stackoverflow.com/search?q="
         finallURL = baseURL + url_encoded
 
+        question = question[:20]+"..." if len(question) > 20 else question
+
         embed = discord.Embed(color=0x1e2dd4)
         embed.set_author(
             name="StackOverflow on question '{}' says...".format(
-                question[:15]),
+                question),
             url=finallURL)
         embed.set_footer(text='click me to find out ;)')
 
