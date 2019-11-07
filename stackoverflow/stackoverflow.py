@@ -33,11 +33,13 @@ class StackOverflow(commands.Cog):
             await ctx.send_help()
             return
 
+        url_encoded = quote(question)
+
         baseURL = "https://stackoverflow.com/search?q="
-        finallURL = baseURL + quote(question)
+        finallURL = baseURL + url_encoded
 
         embed = discord.Embed(color=0x1e2dd4)
-        embed.set_author(name="StackOverflow says",
-                      url=finallURL)
+        embed.set_author(name="StackOverflow says... "+url_encoded[:10],
+                         url=finallURL)
 
         await ctx.send(embed=embed)
