@@ -39,7 +39,9 @@ class StackOverflow(commands.Cog):
         finallURL = baseURL + url_encoded
 
         embed = discord.Embed(color=0x1e2dd4)
-        embed.set_author(name="StackOverflow says {}...".format(question[:15]),
-                         url=finallURL)
+        embed.set_author(
+            name="StackOverflow on question `{}...` says\n_click me to find out ;)_".format(
+                question[:15]),
+            url=finallURL)
 
         await ctx.send(embed=embed)
