@@ -1,0 +1,8 @@
+{
+    "author" : ["Kixiron", "Wereii"],
+    "install_msg" : "Cog made by Kixiron, rebooted for v3 by Wereii. Happy findings.",
+    "name" : "stackoverflow",
+    "short" : "Ask the mighty StackOverflow.",
+    "description" : "Ask questions from the mystical being which all knowledge flows from.",
+    "tags" : ["ask", "stackoverflow", "qa"]
+}
