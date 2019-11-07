@@ -40,7 +40,7 @@ class StackOverflow(commands.Cog):
 
         embed = discord.Embed(color=0x1e2dd4)
         embed.set_author(
-            name="StackOverflow on question {}... says...".format(
+            name="StackOverflow on question '{}' says...".format(
                 question[:15]),
             url=finallURL)
         embed.set_footer(text='click me to find out ;)')
