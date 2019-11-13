@@ -1,31 +1,13 @@
 import logging
+from typing import Dict
 
 import aiohttp
 from redbot.core import Config, checks, commands
 
-logger = logging.getLogger("we_cogs.snekeval")
-
-##
-# Borrowed from Retrigger
-# https://github.com/TrustyJAID/Trusty-cogs/blob/master/retrigger/triggerhandler.py
-
-listener = getattr(commands.Cog, "listener", None)
-
-if listener is None:
-
-    def listener(name=None):
-        return lambda x: x
-
-
-# --
+logger = logging.getLogger("snekeval")
 
 
 class SnekEval(commands.Cog):
-    """Evaluate your python code right from Discord.```
-    - Execution time limited to 2 seconds.
-    - Only built-in modules.
-    - No filesystem.
-    - No enviroment.```"""
 
     def __init__(self):
         self.conf = Config.get_conf(
@@ -34,17 +16,15 @@ class SnekEval(commands.Cog):
         self.conf.register_global(**default_global)
 
     @staticmethod
-    async def evaluate(url: str, payload: str) -> dict:
+    async def _evaluate(url: str, payload: str) -> Dict:
         data = {"input": payload}
 
         async with aiohttp.ClientSession() as session:  # type: aiohttp.ClientSession
             async with session.post(url, json=data) as resp:
                 resp.raise_for_status()
-                ret_json = await resp.json()
+                return await resp.json()
 
-        return ret_json
-
-    async def test_snekurl(self, url: str):
+    async def _test_snekurl(self, url: str):
         ret_json = None
         try:
             ret_json = await self.evaluate(url, "print('hello world')")
@@ -55,6 +35,20 @@ class SnekEval(commands.Cog):
                 return True
 
         return False
+
+    @staticmethod
+    def _remove_escapes(text: str):
+        while text.startswith(('"', '\'', '`')) and text.endswith(('"', '\'', '`')):
+            text = text[1:-1]
+        return text
+
+    @staticmethod
+    def _parse_code_block(text: str):
+        return text.lstrip('```python').rstrip('```')
+
+    @staticmethod
+    def _escape_backticks(text: str, escape_with='\u200b'):
+        return text.replace('`', escape_with)
 
     @commands.command(usage="<snekbox_url>")
     @checks.is_owner()
@@ -70,7 +64,7 @@ class SnekEval(commands.Cog):
             return await ctx.send("`Current snekbox URL: {}`".format(current_url))
 
         async with ctx.typing():
-            if await self.test_snekurl(url):
+            if await self._test_snekurl(url):
                 await self.conf.snekbox_url.set(url)
                 return await ctx.send(":white_check_mark: It's working! New url set.")
 
@@ -78,9 +72,13 @@ class SnekEval(commands.Cog):
 
     @commands.command(usage="<payload>")
     async def snek(self, ctx, *, payload: str = None):
-        """Evaluates python code
-        Escaping with \" or \' is not needed.
-        _Everything after this command is considered code._"""
+        """Evaluate your python code right from Discord.```
+        - Execution time limited to 2 seconds.
+        - Only built-in modules.
+        - No filesystem.
+        - No enviroment.```
+        _Everything after this command is considered code._
+        Code blocks supported."""
 
         url = await self.conf.snekbox_url()
         if not url:
@@ -89,19 +87,36 @@ class SnekEval(commands.Cog):
         if not payload:
             return await ctx.send_help()
 
-        first_sym, last_sym = payload[0], payload[-1]
-        if (first_sym == last_sym == "'") or (first_sym == last_sym == '"'):
-            payload = payload[1:-1]
+        async with ctx.typing():
+            payload = payload.strip()
 
-        data = await self.evaluate(url, payload)
-        await ctx.send(
-            "\n".join(
-                (
-                    "```",
-                    data.get("stdout", ""),
-                    " ",
-                    "status code: {}".format(data.get("returncode")),
-                    "```",
+            # detect code block
+            if payload.startswith("```python") and payload.endswith("```"):
+                payload = self._parse_code_block(payload)
+            else:
+                payload = self._remove_escapes(payload)
+
+            try:
+                data = await self._evaluate(url, payload)
+            except Exception as exc:
+                await ctx.send(f"Something went wrong when contacting Snekbox: `{exc}`")
+                return
+
+            if data.get('returncode') == 137:
+                # timeout
+                await ctx.send(":timer: Execution timeout. _Maximum running time is 2 seconds._")
+                return
+
+            stdout = self._escape_backticks(data.get("stdout", ""))
+
+            await ctx.send(
+                "\n".join(
+                    (
+                        "```",
+                        stdout,
+                        " ",
+                        f"status code: {data.get('returncode')}",
+                        "```",
+                    )
                 )
             )
-        )
