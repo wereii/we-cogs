@@ -48,7 +48,12 @@ class SnekEval(commands.Cog):
 
     @staticmethod
     def _escape_backticks(text: str, escape_with='\u200b'):
-        return text.replace('`', escape_with)
+        """
+        Escapes backticks with zero length spaces.
+        
+        So it won't break up returning discord message format.
+        """
+        return text.replace('`', '`'+escape_with)
 
     @commands.command(usage="<snekbox_url>")
     @checks.is_owner()
