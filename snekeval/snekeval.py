@@ -27,7 +27,7 @@ class SnekEval(commands.Cog):
     async def _test_snekurl(self, url: str):
         ret_json = None
         try:
-            ret_json = await self.evaluate(url, "print('hello world')")
+            ret_json = await self._evaluate(url, "print('hello world')")
         except aiohttp.client_exceptions.ClientError as exc:
             logger.error("Request failed.", exc_info=exc)
         else:
