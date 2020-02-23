@@ -6,12 +6,14 @@ from redbot.core import Config, checks, commands, bot
 
 logger = logging.getLogger("snekeval")
 
+RESPONSE_FSTR = "```\n{stdout}\n\n{status_line}```"
+RESPONSE_STATUS_FSTR = "Status code: {return_code}"
+MAX_OUTPUT_LENGTH = 1000
+
 
 class SnekEval(commands.Cog):
-
     def __init__(self):
-        self.conf = Config.get_conf(
-            self, identifier=115110101107)  # ord('snek')
+        self.conf = Config.get_conf(self, identifier=115110101107)  # ord('snek')
         default_global = {"snekbox_url": None}
         self.conf.register_global(**default_global)
 
@@ -38,17 +40,21 @@ class SnekEval(commands.Cog):
 
     @staticmethod
     def _remove_escapes(text: str):
-        while text.startswith(('"', '\'', '`')) and text.endswith(('"', '\'', '`')):
+        while text.startswith(('"', "'", "`")) and text.endswith(('"', "'", "`")):
             text = text[1:-1]
         return text
 
     @staticmethod
     def _parse_code_block(text: str):
-        return text.lstrip('```python').rstrip('```')
+        return text.lstrip("```python").rstrip("```")
 
     @staticmethod
-    def _escape_backticks(text: str, escape_with='\u200b'):
-        return text.replace('`', escape_with)
+    def _escape_backticks(text: str, escape_with="\u200b"):
+        return text.replace("`", escape_with)
+
+    @staticmethod
+    def _trim_response_length(text: str, max_length=MAX_OUTPUT_LENGTH) -> str:
+        return text if len(text) < max_length else text[:max_length]
 
     @commands.command(usage="<snekbox_url>")
     @checks.is_owner()
@@ -100,24 +106,28 @@ class SnekEval(commands.Cog):
             try:
                 data = await self._evaluate(url, payload)
             except Exception as exc:
-                await ctx.send(f"Something went wrong when contacting Snekbox. Check your bot logs. <@{bot.owner_id}>")
+                await ctx.send(
+                    f"Something went wrong when contacting Snekbox. Check your bot logs. <@{bot.owner_id}>"
+                )
+                logger.exception(exc)
                 return
 
-            if data.get('returncode') == 137:
+            ret_code = data.get("returncode")
+
+            if ret_code == 137:
                 # timeout
-                await ctx.send(":timer: Execution timeout. _Maximum running time is 2 seconds._")
+                await ctx.send(
+                    ":timer: Execution timeout. _Maximum running time is 2 seconds._"
+                )
                 return
 
             stdout = self._escape_backticks(data.get("stdout", ""))
 
+            resp_status_line = RESPONSE_STATUS_FSTR.format(ret_code)
+            resp_stdout = self._trim_response_length(
+                stdout, max_length=MAX_OUTPUT_LENGTH - len(resp_status_line)
+            )
+
             await ctx.send(
-                "\n".join(
-                    (
-                        "```",
-                        stdout,
-                        " ",
-                        f"status code: {data.get('returncode')}",
-                        "```",
-                    )
-                )
+                RESPONSE_FSTR.format(stdout=resp_stdout, status_line=resp_status_line)
             )
