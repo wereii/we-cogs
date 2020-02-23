@@ -27,7 +27,7 @@ class SnekEval(commands.Cog):
                 return await resp.json()
 
     async def _test_snekurl(self, url: str):
-        ret_json = None
+        ret_json = {}
         try:
             ret_json = await self._evaluate(url, "print('hello world')")
         except aiohttp.client_exceptions.ClientError as exc:
@@ -123,7 +123,7 @@ class SnekEval(commands.Cog):
 
             stdout = self._escape_backticks(data.get("stdout", ""))
 
-            resp_status_line = RESPONSE_STATUS_FSTR.format(ret_code)
+            resp_status_line = RESPONSE_STATUS_FSTR.format(return_code=ret_code)
             resp_stdout = self._trim_response_length(
                 stdout, max_length=MAX_OUTPUT_LENGTH - len(resp_status_line)
             )
