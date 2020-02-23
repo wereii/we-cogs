@@ -2,7 +2,7 @@ import logging
 from typing import Dict
 
 import aiohttp
-from redbot.core import Config, checks, commands
+from redbot.core import Config, checks, commands, bot
 
 logger = logging.getLogger("snekeval")
 
@@ -72,7 +72,8 @@ class SnekEval(commands.Cog):
 
     @commands.command(usage="<payload>")
     async def snek(self, ctx, *, payload: str = None):
-        """Evaluate your python code right from Discord.```
+        """Evaluate your python code right from Discord.
+        ```
         - Execution time limited to 2 seconds.
         - Only built-in modules.
         - No filesystem.
@@ -99,7 +100,7 @@ class SnekEval(commands.Cog):
             try:
                 data = await self._evaluate(url, payload)
             except Exception as exc:
-                await ctx.send(f"Something went wrong when contacting Snekbox: `{exc}`")
+                await ctx.send(f"Something went wrong when contacting Snekbox. Check your bot logs. <@{bot.owner_id}>")
                 return
 
             if data.get('returncode') == 137:
